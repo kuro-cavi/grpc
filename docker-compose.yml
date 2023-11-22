@@ -1,0 +1,44 @@
+version: '3.8'
+services:
+
+  ### Client Node #########################################
+  client:
+    build:
+      context: ./docker/node
+    container_name: "gprc_client"
+    volumes:
+      - ./client:/app
+    ports:
+      - "3003:3003"
+    command: npm run dev
+    tty: true
+
+  ### Server Go #########################################
+  server:
+    build:
+      context: .
+      dockerfile: ./docker/go/Dockerfile
+    container_name: "gprc_go"
+    ports:
+      - "55050:55050"
+    command: go run main.go
+    tty: true
+
+  ### Envoy #########################################
+  envoy:
+    build:
+      context: ./docker/envoy
+    container_name: "gprc_envoy"
+    ports:
+      - "8008:8008"
+    links:
+      - 'server'
+
+  ### Workspace #########################################
+  workspace:
+    build:
+      context: ./docker/workspace
+    container_name: "gprc_workspace"
+    volumes:
+      - ./:/workspace
+    tty: true
