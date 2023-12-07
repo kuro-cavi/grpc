@@ -6,5 +6,6 @@ WORKDIR /app
 
 #CMD ["go", "run", "/app/main.go"]
 
-COPY ../../server .
+COPY ../../server/go.mod .
+COPY ../../server/go.sum .
 RUN go mod tidy

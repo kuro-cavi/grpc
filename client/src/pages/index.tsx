@@ -1,14 +1,17 @@
 import Head from 'next/head'
-import {Inter} from 'next/font/google'
+import { Inter } from 'next/font/google'
 import styles from '@/styles/Home.module.css'
-import {ChangeEvent, KeyboardEvent, useCallback, useState} from "react";
-import {HelloServiceClient} from "../../proto/hello_grpc_web_pb";
-import {HelloRequest} from "../../proto/hello_pb";
+import { ChangeEvent, KeyboardEvent, useCallback, useState } from 'react'
+import { useMessage } from '../hooks/useMessage'
+import { MessageServiceClient } from '../../proto/message_grpc_web_pb'
 
 const inter = Inter({subsets: ['latin']})
+const client = new MessageServiceClient('http://localhost:8008')
 
 export default function Home() {
-  const [text, setText] = useState('');
+
+  const [messages, sendMessage] = useMessage(client)
+  const [text, setText] = useState('')
 
   const handleChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     setText(e.target.value)
@@ -18,24 +21,13 @@ export default function Home() {
     if (e.key !== 'Enter') {
       return
     }
-    console.log('test')
+    handleSubmit()
 
-  }, [text]);
-
-  const [message, setMessage] = useState<string>('');
-
-  const handleSubmit = useCallback(() => {
-    const client = new HelloServiceClient('http://localhost:8008', null, null);
-    const req = new HelloRequest();
-    req.setName(text);
-    client.getHello(req, {}, (err, res) => {
-      if(err) {
-        console.error(err)
-      } else {
-        setMessage(res.getMessage())
-      }
-    });
   }, [text])
+
+  const handleSubmit = () => {
+    sendMessage(text)
+  }
 
   return (
     <>
@@ -58,7 +50,11 @@ export default function Home() {
           <button onClick={handleSubmit}>
             Submit
           </button>
-          <p>{message}</p>
+          <div>
+            {messages && messages.map((message: string, index: number) => (
+              <p key={index}>{message}</p>
+            ))}
+          </div>
         </div>
       </main>
     </>

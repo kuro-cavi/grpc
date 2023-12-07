@@ -19,6 +19,8 @@ services:
       context: .
       dockerfile: ./docker/go/Dockerfile
     container_name: "gprc_go"
+    volumes:
+      - ./server:/app
     ports:
       - "55050:55050"
     command: go run main.go

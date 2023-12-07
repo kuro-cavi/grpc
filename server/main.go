@@ -2,25 +2,62 @@ package main
 
 import (
     "context"
-    "fmt"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+	"sync"
 
-    hellopb "g-prc/proto"
-
+    pb "g-prc/proto"
+	
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-type helloServer struct {
-	hellopb.UnimplementedHelloServiceServer
+type messageServer struct {
+	pb.UnimplementedMessageServiceServer
+	mu       sync.Mutex
+	messages []string
 }
 
-func (helloServer *helloServer) GetHello(ctx context.Context, in *hellopb.HelloRequest) (*hellopb.HelloResponse, error) {
-	log.Printf("Received: %v", in.GetName())
-	return &hellopb.HelloResponse{Message: fmt.Sprintf("Hello %s", in.GetName())}, nil
+func (s *messageServer) SendMessage(ctx context.Context, req *pb.SendMessageRequest) (*pb.SendMessageResponse, error) {
+	// s.mu.Lock()
+    // defer s.mu.Unlock()
+
+    s.messages = append(s.messages, req.GetMessage())
+    return &pb.SendMessageResponse{ Result: "ok" }, nil
+}
+
+func (s *messageServer) ReceiveMessage(empty *emptypb.Empty, stream pb.MessageService_ReceiveMessageServer) error {
+    // s.mu.Lock()
+    // defer s.mu.Unlock()
+
+    for _, msg := range s.messages {
+		if err := stream.Send(&pb.ReceiveResponse{
+			Message: msg,
+		}); err != nil {
+			return err
+		}
+    }
+
+	previousLen := len(s.messages)
+	for {
+		currentLen := len(s.messages)
+		if previousLen < currentLen {
+            receveMsg := s.messages[currentLen-1]
+            if err := stream.Send(&pb.ReceiveResponse{
+				Message: receveMsg,
+			}); err != nil {
+                return err
+            }
+        }
+		previousLen = currentLen
+	}
+}
+
+func NewServer() *messageServer {
+	return &messageServer{}
 }
 
 func main() {
@@ -30,9 +67,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-
-	hellopb.RegisterHelloServiceServer(grpcServer, &helloServer{})
-
+	pb.RegisterMessageServiceServer(grpcServer, NewServer())
 	reflection.Register(grpcServer)
 
     go func() {
